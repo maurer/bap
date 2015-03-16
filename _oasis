@@ -308,6 +308,14 @@ Library disasm_test
   Install:        false
   Modules:        Test_disasm
 
+Library flow_test
+  Path:           lib_test/bap_flow
+  Build$:         flag(tests)
+  CompiledObject: best
+  BuildDepends:   bap, ocamlgraph
+  Install:        false
+  Modules:        Test_csg
+
 Library core_lwt
   Path:           lwt
   Build$:         flag(server)
@@ -374,7 +382,8 @@ Executable run_tests
                 dwarf_test,
                 image_test,
                 oUnit,
-                types_test
+                types_test,
+                flow_test
   CompiledObject: best
 
 Executable run_benchmarks
