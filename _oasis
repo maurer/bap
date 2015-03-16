@@ -41,7 +41,8 @@ Document bap
                         bap.types,
                         bap.image,
                         bap.disasm,
-                        bap.dwarf
+                        bap.dwarf,
+                        bap.flow
 
 Flag serialization
   Description: Build serialization library
@@ -75,7 +76,8 @@ Library bap
   Path:            lib/bap
   FindLibName:     bap
   CompiledObject:  best
-  BuildDepends:    bap.disasm,
+  BuildDepends:    bap.flow,
+                   bap.disasm,
                    bap.dwarf,
                    bap.elf,
                    bap.image,
@@ -263,6 +265,16 @@ Library llvm
   CSources:      llvm_disasm.h, llvm_disasm.c, llvm_stubs.c
   XMETAExtraLines: plugin_system = "bap.disasm.disabled"
 
+Library flow
+  Path:          lib/bap_flow
+  FindlibParent: bap
+  FindlibName:   flow
+  BuildDepends:  bap.types,
+                 bap.disasm,
+                 bap.image,
+                 ocamlgraph
+  Modules:       Bap_flow,
+                 Bap_flow_csg 
 
 Library types_test
   Path:           lib_test/bap_types
@@ -312,7 +324,7 @@ Library flow_test
   Path:           lib_test/bap_flow
   Build$:         flag(tests)
   CompiledObject: best
-  BuildDepends:   bap, ocamlgraph
+  BuildDepends:   bap
   Install:        false
   Modules:        Test_csg
 
@@ -378,12 +390,12 @@ Executable run_tests
   Install:      false
   Build$:       flag(tests)
   BuildDepends: bap.plugins,
+                flow_test,
                 disasm_test,
                 dwarf_test,
                 image_test,
                 oUnit,
-                types_test,
-                flow_test
+                types_test
   CompiledObject: best
 
 Executable run_benchmarks

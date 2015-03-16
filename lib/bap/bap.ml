@@ -138,4 +138,6 @@ module Std = struct
 
   (** {4 Byteweight Algorithm implementation}  *)
   module Byteweight = Bap_byteweight
+
+  module Flow = Bap_flow
 end
