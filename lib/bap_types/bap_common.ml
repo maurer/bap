@@ -35,6 +35,8 @@ module Size = struct
     | `r16
     | `r32
     | `r64
+    | `r128
+    | `r256
   ] with bin_io, compare, sexp, variants
 
   type 'a p = 'a constraint 'a = [< all]
@@ -77,16 +79,33 @@ module Arch = struct
   ] with bin_io, compare, enumerate, sexp
 
   type arm = [
-    | `arm
-    | `armeb
     | `armv4
-    | `armv4t
     | `armv5
     | `armv6
     | `armv7
-    | `thumb
-    | `thumbeb
   ] with bin_io, compare, enumerate, sexp
+
+  type armeb = [
+    | `armv4eb
+    | `armv5eb
+    | `armv6eb
+    | `armv7eb
+  ] with bin_io, compare, enumerate, sexp
+
+  type thumb = [
+    | `thumbv4
+    | `thumbv5
+    | `thumbv6
+    | `thumbv7
+  ] with bin_io, compare, enumerate, sexp
+
+  type thumbeb = [
+    | `thumbv4eb
+    | `thumbv5eb
+    | `thumbv6eb
+    | `thumbv7eb
+  ] with bin_io, compare, enumerate, sexp
+
 
   type aarch64 = [
     | `aarch64
@@ -136,6 +155,9 @@ module Arch = struct
   type t = [
     | aarch64
     | arm
+    | armeb
+    | thumb
+    | thumbeb
     | hexagon
     | mips
     | nvptx

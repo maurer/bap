@@ -241,11 +241,11 @@ module Example = struct
     Term.enum blk_t sub |> Seq.find_map ~f:(fun blk ->
         Term.enum phi_t blk |> Seq.find ~f:(fun phi ->
             let v = Phi.lhs phi in
-            Var.same v var && Var.version v = var_ver)) |> function
+            Var.same v var && Var.index v = var_ver)) |> function
     | None -> assert_string "no such phi-node"
     | Some phi -> Phi.values phi |> Seq.find ~f:(fun (tid,exp) ->
         Term.tid blk = tid && match exp with
-        | Bil.Var v -> Var.version v = blk_ver
+        | Bil.Var v -> Var.index v = blk_ver
         | _ -> assert false) |> function
                   | None -> assert_string "wrong phi-node"
                   | Some _ -> ()
@@ -259,7 +259,7 @@ module Example = struct
       "j.2=j.3" >:: phi_node j 2 b3 3;
       "k.2=k.1" >:: phi_node k 2 b1 1;
       "k.2=k.3" >:: phi_node k 2 b3 3;
-      "i.5=i.3" >:: phi_node i 5 b5 3;
+      "i.5=i.2" >:: phi_node i 5 b5 2;
       "i.5=i.4" >:: phi_node i 5 b6 4;
     ]
 

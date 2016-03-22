@@ -20,6 +20,8 @@ module Getters = struct
     uint16: getter;
     int32 : getter;
     int64 : getter;
+    int128 : getter;
+    int256 : getter;
   } with fields
 end
 
@@ -86,22 +88,52 @@ let create_getters endian addr off size data  =
   let int n = make (Word.of_int ~width:(n*8)) n in
   let int32 = make Word.of_int32 in
   let int64 = make Word.of_int64 in
+  let concat_int64X2 = make Word.(
+      fun (a, b) -> concat (of_int64 a) (of_int64 b)) in
+  let concat_int64X4 = make Word.(
+      fun (a, b, c, d) -> concat (concat (of_int64 a) (of_int64 b))
+          (concat (of_int64 c) (of_int64 d))) in
   let open Bigstring in
-  if endian = BigEndian then {
-    int8   = int   1 unsafe_get_int8;
-    uint8  = int   1 unsafe_get_uint8;
-    int16  = int   2 unsafe_get_int16_be;
-    uint16 = int   2 unsafe_get_uint16_be;
-    int32  = int32 4 unsafe_get_int32_t_be;
-    int64  = int64 8 unsafe_get_int64_t_be;
-  } else {
-    int8   = int 1 unsafe_get_int8;
-    uint8  = int 1 unsafe_get_uint8;
-    int16  = int 2 unsafe_get_int16_le;
-    uint16 = int 2 unsafe_get_uint16_le;
-    int32  = int32 4 unsafe_get_int32_t_le;
-    int64  = int64 8 unsafe_get_int64_t_le;
-  }
+  if endian = BigEndian then
+    let get_int64_beX2 t ~pos = (
+      unsafe_get_int64_t_be t ~pos:pos,
+      unsafe_get_int64_t_be t ~pos:(pos+8)
+    ) in
+    let get_int64_beX4 t ~pos = (
+      unsafe_get_int64_t_be t ~pos:pos,
+      unsafe_get_int64_t_be t ~pos:(pos+8),
+      unsafe_get_int64_t_be t ~pos:(pos+16),
+      unsafe_get_int64_t_be t ~pos:(pos+24)
+    ) in {
+      int8   = int   1 unsafe_get_int8;
+      uint8  = int   1 unsafe_get_uint8;
+      int16  = int   2 unsafe_get_int16_be;
+      uint16 = int   2 unsafe_get_uint16_be;
+      int32  = int32 4 unsafe_get_int32_t_be;
+      int64  = int64 8 unsafe_get_int64_t_be;
+      int128 = concat_int64X2 16 get_int64_beX2;
+      int256 = concat_int64X4 32 get_int64_beX4;
+    }
+  else
+    let get_int64_leX2rev t ~pos = (
+      unsafe_get_int64_t_le t ~pos:(pos+8),
+      unsafe_get_int64_t_le t ~pos:pos
+    ) in
+    let get_int64_leX4rev t ~pos = (
+      unsafe_get_int64_t_le t ~pos:(pos+24),
+      unsafe_get_int64_t_le t ~pos:(pos+16),
+      unsafe_get_int64_t_le t ~pos:(pos+8),
+      unsafe_get_int64_t_le t ~pos:pos
+    ) in {
+      int8   = int 1 unsafe_get_int8;
+      uint8  = int 1 unsafe_get_uint8;
+      int16  = int 2 unsafe_get_int16_le;
+      uint16 = int 2 unsafe_get_uint16_le;
+      int32  = int32 4 unsafe_get_int32_t_le;
+      int64  = int64 8 unsafe_get_int64_t_le;
+      int128 = concat_int64X2 16 get_int64_leX2rev;
+      int256 = concat_int64X4 32 get_int64_leX4rev;
+    }
 
 let one_byte_getters data addr pos =
   let byte = Word.of_int ~width:8 in
@@ -129,6 +161,8 @@ let one_byte_getters data addr pos =
     uint16 = error;
     int32  = error;
     int64  = error;
+    int128 = error;
+    int256 = error;
   }
 
 let make_byte mem addr off : t = {
@@ -181,6 +215,8 @@ let getter mem : size -> getter = function
   | `r16 -> mem.get.uint16
   | `r32 -> mem.get.int32
   | `r64 -> mem.get.int64
+  | `r128 -> mem.get.int128
+  | `r256 -> mem.get.int256
 
 let contains mem =
   Addr.between ~low:(min_addr mem) ~high:(max_addr mem)
@@ -211,13 +247,15 @@ module Input = struct
   let uint16 = read uint16
   let int32 = read int32
   let int64 = read int64
+  let int128 = read int128
+  let int256 = read int256
 end
 
 let sub copy ?(word_size=`r8) ?from ?words  t : t or_error =
   let amin = Option.value from ~default:(min_addr t) in
   let amax =
     Option.map words
-      ~f:(fun w -> Addr.(amin ++ Int.(w * Size.to_bytes word_size - 1))) |>
+      ~f:(fun w -> Addr.(amin ++ Int.(w * Size.in_bytes word_size - 1))) |>
     Option.value ~default:(max_addr t) in
   Validate.(result @@ name "view must not be empty" @@
             Addr.validate_lbound amax ~min:(Incl amin)) >>= fun () ->
@@ -269,7 +307,7 @@ let merge m1 m2 =
 let folder step ?(word_size=`r8) t ~(init:'a) ~f : 'a =
   let read = (getter t word_size).fast in
   let pos_ref = ref t.off in
-  let word_len = Size.to_bytes word_size in
+  let word_len = Size.in_bytes word_size in
   let finish = t.off + t.size - word_len in
   let base = Addr.(t.addr -- t.off) in
   let rec loop init =
@@ -408,7 +446,7 @@ module Trie = struct
     type nonrec t = t
     type token = word with bin_io, compare, sexp
 
-    let length m = length m / Size.to_bytes size
+    let length m = length m / Size.in_bytes size
     let nth_token m n = get ~index:n ~scale:size m |> ok_exn
     let token_hash = Word.hash
   end
@@ -423,6 +461,7 @@ include Printable(struct
     type nonrec t = t
 
     let module_name = Some "Bap.Std.Memory"
+    let version = "0.1"
 
     let print_word fmt word =
       let width = Word.bitwidth word / 4 in

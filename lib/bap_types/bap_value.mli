@@ -26,6 +26,7 @@ module Dict : sig
   val find : t -> 'a tag -> 'a option
   val add : t -> 'a tag -> 'a -> [`Ok of t | `Duplicate]
   val change : t -> 'a tag -> ('a option -> 'a option) -> t
+  val all_pairs : t -> (typeid * value) Sequence.t
   val data : t -> value Sequence.t
 end
 
@@ -43,6 +44,14 @@ module Tag : sig
   val same : 'a t -> 'b t -> bool
   val same_witness : 'a t -> 'b t -> ('a,'b) Type_equal.t option
   val same_witness_exn : 'a t -> 'b t -> ('a,'b) Type_equal.t
+end
+
+module Match : sig
+  type 'a t
+  val switch : value -> 's t -> 's
+  val select : 's t -> value -> 's
+  val case : 'a tag -> ('a -> 's) -> 's t -> 's t
+  val default : (unit -> 's) -> 's t
 end
 
 module Typeid : Regular with type t = typeid
