@@ -10,7 +10,7 @@ type case = {
   addr : int;
   code : string;
   bil : string;
-  asm : string;
+  asm : string list;
 }
 
 let arm = {
@@ -18,14 +18,14 @@ let arm = {
   addr = 16;
   code = "\x00\x20\xA0\xE3";
   bil  = "R2 := 0x0:32";
-  asm  = "mov r2, #0x0";
+  asm  = ["mov r2, #0x0"; "mov r2, #0"]
 }
 
 let x86 = {
   arch = `x86;
   addr = 10;
   code = "\x89\x34\x24";
-  asm  = "movl %esi, (%esp)";
+  asm  = ["movl %esi, (%esp)"];
   bil  = "mem32 := mem32 with [ESP,el]:u32 <- ESI";
 }
 
@@ -33,8 +33,11 @@ let normalize = String.filter ~f:(function
     | '\n' | '\r' | ' ' | '\t' | '{' | '}' -> false
     | _ -> true)
 
-let assert_normalized ~expect got ctxt : unit =
-  assert_equal ~ctxt (normalize expect) (normalize got) ~printer:ident
+let assert_normalized_in ~expect got ctxt : unit =
+  assert_equal ~cmp:(fun expect got ->
+    List.for_all got ~f:(List.mem expect))
+  ~ctxt (List.map ~f:normalize expect) [normalize got]
+  ~printer:(String.concat ~sep:" | ")
 
 let tag = Value.Tag.register (module String)
     ~name:"test"
@@ -65,13 +68,14 @@ let test_substitute case : test list =
 
   let p = Project.create ~rooter ~symbolizer input |> ok_exn in
   let mem,_ = Memmap.lookup (Project.memory p) base |> Seq.hd_exn in
-  let test expect s =
+  let test_in (expect : string list) s =
     let p = Project.substitute p mem tag s in
     let s = Option.value_exn (Project.memory p |>
                               Memmap.find_map ~f:(Value.get tag)) in
-    expect >:: assert_normalized ~expect s in
+    (String.concat ~sep:", " expect) >:: assert_normalized_in ~expect s in
+  let test expect s = test_in [expect] s in
   [
-    test case.asm "$asm";
+    test_in case.asm "$asm";
     test case.bil "$bil";
     test sub_name "$symbol";
     test sub_name "$symbol_name";

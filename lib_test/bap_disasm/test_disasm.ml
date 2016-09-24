@@ -21,17 +21,17 @@ let overlap = "\x2d\xdd\xc3\x54\x55"
 let valid_insn_seq = "\x55\x54\xE9\xFC\xFF\xFF\xFF"
 let x86_64 = "x86_64", [
     (* sub $0x8,%rsp *)
-    sub , ["SUB64ri8"; "RSP"; "RSP"; "0x8"], [];
+    sub , [["SUB64ri8"; "RSP"; "RSP"; "0x8"]], [];
     (* callq 942040 *)
-    call , ["CALL64pcrel32"; "-0x11b9";],
+    call , [["CALL64pcrel32"; "-0x11b9";]],
     [`Call; `May_affect_control_flow];
     (* mov 0x10(%rax),%eax *)
-    mov, ["MOV32rm"; "EAX"; "RAX"; "0x1"; "Nil"; "0x10"; "Nil"],
+    mov, [["MOV32rm"; "EAX"; "RAX"; "0x1"; "Nil"; "0x10"; "Nil"]],
     [`May_load];
     (* add $0x8, %rsp *)
-    add, ["ADD64ri8"; "RSP"; "RSP"; "0x8"], [];
+    add, [["ADD64ri8"; "RSP"; "RSP"; "0x8"]], [];
     (* "retq" *)
-    ret, ["RET"],
+    ret, [["RET"]; ["RETQ"]],
     [`Return; `Barrier; `Terminator; `May_affect_control_flow]
   ]
 
@@ -52,7 +52,7 @@ let string_of_strings insn =
   Sexp.to_string (sexp_of_list sexp_of_string insn)
 
 let printer r =
-  Or_error.sexp_of_t (sexp_of_list sexp_of_string) r |>
+  Or_error.sexp_of_t (sexp_of_list (sexp_of_list sexp_of_string)) r |>
   Sexp.to_string
 
 let strings_of_insn insn =
@@ -73,10 +73,16 @@ let insn_of_mem arch data ctxt =
           (String.length data) (Memory.length mem);
         return (strings_of_insn insn))
 
+let result_subset_cmp haystack needles =
+  match (needles, haystack) with
+  | (Ok(needles), Ok(haystack)) -> List.for_all needles ~f:(List.mem haystack)
+  | _ -> false
+
 let test_insn_of_mem  (arch,samples) ctxt =
   let test (data,expect,_) =
-    assert_equal ~ctxt ~printer
-      (Ok expect) (insn_of_mem arch data ctxt)  in
+    let insn = insn_of_mem arch data ctxt in
+    assert_equal ~ctxt ~printer ~cmp:result_subset_cmp
+      (Ok expect) (Result.map ~f:(fun x -> [x]) insn) in
   List.iter samples ~f:test
 
 let test_run_all (arch,samples) ctxt =
@@ -94,8 +100,8 @@ let test_run_all (arch,samples) ctxt =
               ~f:(fun (data,exp,kinds) -> function
                   | (_,None) -> assert_string "bad instruction"
                   | (mem, Some r) ->
-                    assert_equal ~ctxt ~printer
-                      (Ok exp) (Ok (strings_of_insn r));
+                    assert_equal ~ctxt ~printer ~cmp:result_subset_cmp
+                      (Ok exp) (Ok [strings_of_insn r]);
                     assert_equal ~ctxt ~printer:Int.to_string
                       (String.length data) (Memory.length mem);
                     List.iter kinds ~f:(fun expected ->
