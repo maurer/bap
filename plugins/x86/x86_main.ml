@@ -5,16 +5,20 @@ include Self()
 
 type kind = Legacy | Modern | Merge
 
+let loaded = ref false
+
 let main kind x32 x64 =
-  let ia32, amd64 = match kind with
-    | Legacy -> (module IA32L : Target), (module AMD64L : Target)
-    | Modern -> (module IA32 : Target), (module AMD64 : Target)
-    | Merge -> (module IA32M : Target), (module AMD64M : Target) in
-  register_target `x86 ia32;
-  register_target `x86_64 amd64;
-  X86_abi.setup ~abi:(function
-      | `x86 -> x32
-      | `x86_64 -> x64) ()
+  if not !loaded then (
+    let ia32, amd64 = match kind with
+      | Legacy -> (module IA32L : Target), (module AMD64L : Target)
+      | Modern -> (module IA32 : Target), (module AMD64 : Target)
+      | Merge -> (module IA32M : Target), (module AMD64M : Target) in
+    register_target `x86 ia32;
+    register_target `x86_64 amd64;
+    X86_abi.setup ~abi:(function
+        | `x86 -> x32
+        | `x86_64 -> x64) ();
+    loaded := true)
 
 let () =
   let () = Config.manpage [
@@ -59,3 +63,5 @@ let () =
                Option.some_if (kind = default) name)) in
     Config.(param (enum kinds) "lifter" ~doc ~default) in
   Config.when_ready (fun {Config.get=(!)} -> main !kind !x32 !x64)
+
+let () = main Merge None None

@@ -69,6 +69,7 @@ let of_data data : Backend.Img.t option =
   | exn -> error "Can't create binary: %a%!" Exn.pp exn; None
 
 let () =
+  let name = "llvm" in
   match Image.register_backend ~name of_data with
   | `Ok -> ()
   | `Duplicate ->
