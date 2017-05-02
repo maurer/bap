@@ -5,7 +5,7 @@ set -e
 
 
 # use vargrant to build packages
-export VERSION=1.2.0
+export VERSION=1.2.1
 
 # This script will create an rpm file, and requires sudo to operate.
 #

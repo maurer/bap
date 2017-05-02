@@ -1,3 +1,8 @@
+1.2.1
+=====
+### Bug fixes
+- Backport patch fixing *.o loading in LLVM
+
 1.2.0
 =====
 
