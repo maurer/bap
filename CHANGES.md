@@ -1,3 +1,8 @@
+1.2.2
+=====
+### Bug fixes
+- Backport fix for instruction decode bug in x86 (#640 #642)
+
 1.2.1
 =====
 ### Bug fixes
